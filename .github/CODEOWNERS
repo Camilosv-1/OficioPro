@@ -1,0 +1,9 @@
+# Quién revisa qué. Reemplaza los usuarios por los de GitHub de cada integrante.
+*                       @usuario-francisca
+/backend/apps/accounts/ @usuario-francisca
+/backend/apps/privacy/  @usuario-francisca
+/frontend/              @usuario-karla
+/docker-compose.yml     @usuario-juan
+/backend/Dockerfile     @usuario-juan
+/backend/apps/whatsapp/ @Camilosv-1
+/backend/apps/qr/       @Camilosv-1

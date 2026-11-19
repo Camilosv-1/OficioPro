@@ -1,0 +1,34 @@
+# Escaneo dinámico con OWASP ZAP. Se ejecuta a mano (pestaña Actions > ZAP > Run workflow).
+# Levanta todo el sistema con Docker y lo "ataca" de forma segura buscando problemas comunes.
+name: ZAP
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  zap:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Crear .env de prueba
+        run: |
+          cp .env.example .env
+          sed -i "s/^DJANGO_SECRET_KEY=.*/DJANGO_SECRET_KEY=$(openssl rand -hex 32)/" .env
+          sed -i "s/^POSTGRES_PASSWORD=.*/POSTGRES_PASSWORD=$(openssl rand -hex 16)/" .env
+      - name: Levantar el sistema
+        run: |
+          docker compose up -d --build
+          for i in $(seq 1 30); do curl -sf http://localhost:8080/api/health/ && break; sleep 5; done
+      - name: ZAP baseline
+        uses: zaproxy/action-baseline@v0.14.0
+        with:
+          target: http://localhost:8080
+          fail_action: false
+          allow_issue_writing: false
+      - name: Apagar
+        if: always()
+        run: docker compose down -v

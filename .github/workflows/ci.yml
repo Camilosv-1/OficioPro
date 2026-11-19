@@ -1,0 +1,73 @@
+# Integración continua: se ejecuta en cada pull request y en cada push a main/develop.
+# Si algún paso falla, GitHub marca el PR en rojo y (con la regla de rama) no se puede unir.
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main, develop]
+
+permissions:
+  contents: read
+
+jobs:
+  backend:
+    name: Backend (pruebas + seguridad)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+      - run: pip install -r requirements-dev.txt
+      - name: Pruebas automáticas
+        run: pytest
+      - name: Bandit (código Python inseguro)
+        run: bandit -r apps -ll -x "*/tests/*"
+      - name: pip-audit (dependencias vulnerables)
+        run: pip-audit -r requirements.txt
+
+  frontend:
+    name: Frontend (build + auditoría)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - run: npm ci
+      - run: npm run build
+      - name: npm audit (dependencias vulnerables)
+        run: npm audit --audit-level=high
+
+  secrets:
+    name: Gitleaks (claves subidas por error)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Escanear historial con Gitleaks
+        run: |
+          docker run --rm -v "$PWD:/repo" zricethezav/gitleaks:latest detect --source /repo --redact -v
+
+  trivy:
+    name: Trivy (vulnerabilidades en archivos y Dockerfiles)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: aquasecurity/trivy-action@0.28.0
+        with:
+          scan-type: fs
+          scanners: vuln,misconfig,secret
+          severity: HIGH,CRITICAL
+          exit-code: "1"
