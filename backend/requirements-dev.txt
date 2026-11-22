@@ -1,0 +1,6 @@
+# Dependencias solo para desarrollo y pruebas (no van a producción).
+-r requirements.txt
+pytest>=8.3
+pytest-django>=4.9
+bandit>=1.8
+pip-audit>=2.7
