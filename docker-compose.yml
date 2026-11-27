@@ -1,0 +1,77 @@
+# Uso:
+#   docker compose up --build            -> levanta todo (http://localhost:8080)
+#   docker compose up db                 -> solo PostgreSQL, para desarrollar con runserver
+#   docker compose --profile demo up     -> además publica la app con un túnel de Cloudflare
+name: oficiopro
+
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    ports:
+      - "127.0.0.1:5432:5432"   # solo accesible desde TU computador (para runserver)
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 5s
+      retries: 10
+    networks: [internal]
+
+  backend:
+    build: ./backend
+    env_file: .env
+    environment:
+      DJANGO_SETTINGS_MODULE: config.settings.prod
+      DATABASE_URL: postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB}
+      PRIVATE_MEDIA_ROOT: /app/private_media
+    volumes:
+      - private_media:/app/private_media
+    depends_on:
+      db:
+        condition: service_healthy
+    ports:
+      - "127.0.0.1:8000:8000"   # solo accesible desde TU computador (para runserver)
+    # Sin puertos publicados: nadie entra directo. Está en "edge" solo para poder
+    # SALIR a internet (API de WhatsApp); la base de datos queda solo en "internal".
+    networks: [internal, edge]
+
+  #frontend:
+  #  build: ./frontend
+   # depends_on: [backend]
+    #networks: [internal, edge]
+
+ # waf:
+    # WAF ModSecurity + OWASP Core Rule Set. Para producción, fija un tag estable con fecha.
+  #  image: owasp/modsecurity-crs:nginx-alpine
+   # environment:
+    #  BACKEND: http://frontend:8080
+     # BLOCKING_PARANOIA: 1
+      #ANOMALY_INBOUND: 5
+      #ANOMALY_OUTBOUND: 4
+      #SERVER_TOKENS: "off"
+      #MODSEC_REQ_BODY_LIMIT: 13107200
+    #ports:
+     # - "8080:8080"               # ÚNICA puerta de entrada al sistema
+    #depends_on: [frontend]
+    #networks: [edge]
+
+  #// tunnel:
+    # Túnel rápido de Cloudflare: entrega una URL https://....trycloudflare.com sin abrir puertos.
+    #image: cloudflare/cloudflared:latest
+    #command: tunnel --no-autoupdate --url http://waf:8080
+    #depends_on: [waf]
+    #networks: [edge]
+    #profiles: [demo]
+
+volumes:
+  pgdata:
+  private_media:
+
+networks:
+  internal:
+    internal: true                # red sin salida a internet: base de datos aislada
+  edge:

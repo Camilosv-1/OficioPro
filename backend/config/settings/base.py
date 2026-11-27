@@ -38,8 +38,8 @@ THIRD_PARTY_APPS = [
 ]
 LOCAL_APPS = [
     "apps.core",
-    #"apps.accounts",
-    #"apps.privacy",
+    "apps.accounts",
+    "apps.privacy",
     #"apps.verification",
     #"apps.clients",
     #"apps.jobs",
@@ -92,7 +92,7 @@ DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 # ---------------------------------------------------------------------------
 # Usuarios y contraseñas
 # ---------------------------------------------------------------------------
-#AUTH_USER_MODEL = "accounts.User"
+AUTH_USER_MODEL = "accounts.User"
 
 # Argon2 primero: es el algoritmo recomendado por OWASP para guardar contraseñas.
 PASSWORD_HASHERS = [
